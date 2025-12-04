@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gestión de Capacitaciones | Admin</title>
+  <link rel="stylesheet" href="estilos.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    .logout-top { background:#dc3545;color:#fff;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-weight:bold;margin-left:10px;}
+    table{border-collapse:collapse;width:100%;text-align:center;margin-top:10px}
+    th,td{border:1px solid #ccc;padding:8px}
+    thead{background:#f0f0f0}
+    .btn-accion{border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:bold}
+    .btn-editar{background:#007bff;color:#fff}.btn-eliminar{background:#dc3545;color:#fff}
+  </style>
+</head>
+<body>
+  <div class="app-window">
+    <div class="title-bar">
+      <span>Sistema de Gestión de Seguridad Industrial (ADMINISTRADOR)</span>
+      <div class="window-controls">
+        <button class="logout-top" onclick="window.location.href='../login.html'">➡️ Cerrar Sesión</button>
+      </div>
+    </div>
+
+    <div class="app-container">
+      <aside class="sidebar">
+        <h2>Módulos</h2>
+        <nav>
+          <a href="admin_dashboard.html">📊 Dashboard / Inicio</a>
+          <a href="incidentes.html">📝 Incidentes</a>
+          <a href="comentarios_admin.html">💬 Gestión de Comentarios</a>
+          <a href="capacitaciones.html" class="active">📘 Capacitaciones</a>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <h2>📘 Gestión de Capacitaciones</h2>
+
+        <!-- Formulario -->
+        <section class="form-section">
+          <h3>➕ Programar Nueva Capacitación</h3>
+          <form id="form-capacitacion">
+            <label for="tema">Tema:</label>
+            <input type="text" id="tema" required />
+
+            <label for="fecha">Fecha:</label>
+            <input type="date" id="fecha" required />
+
+            <label for="hora">Hora:</label>
+            <input type="time" id="hora" />
+
+            <label for="duracion">Duración (horas):</label>
+            <input type="number" id="duracion" min="1" placeholder="2" />
+
+            <label for="responsable">Responsable:</label>
+            <input type="text" id="responsable" required />
+
+            <label for="area">Área:</label>
+            <select id="area">
+              <option value="Todos">Todos los empleados</option>
+              <option value="Producción">Producción</option>
+              <option value="Logística">Logística</option>
+              <option value="Administración">Administración</option>
+              <option value="Mantenimiento">Mantenimiento</option>
+            </select>
+
+            <button type="submit">➕ Programar Capacitación</button>
+          </form>
+        </section>
+
+        <!-- Tabla -->
+        <section class="tabla-capacitaciones">
+          <h3>📅 Capacitaciones Programadas</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tema</th><th>Fecha</th><th>Hora</th><th>Duración</th><th>Responsable</th><th>Área</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <!-- Exportar -->
+        <section class="exportar-section">
+          <button class="btn-excel" onclick="exportarExcelTabla()">📘 Exportar a Excel</button>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const API_URL = "http://localhost:8081/api/capacitaciones";
+
+    // Cargar capacitaciones
+    async function cargarCapacitaciones(){
+      try{
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error('Error cargando');
+        const data = await res.json();
+        const tbody = document.querySelector(".tabla-capacitaciones tbody");
+        tbody.innerHTML = "";
+        data.forEach(cap => {
+          const fila = `
+            <tr>
+              <td>${cap.tema||""}</td>
+              <td>${cap.fecha||""}</td>
+              <td>${cap.hora||""}</td>
+              <td>${cap.duracion||""} ${cap.duracion ? "horas": ""}</td>
+              <td>${cap.responsable||""}</td>
+              <td>${cap.area||""}</td>
+              <td>
+                <button class="btn-accion btn-editar" onclick="editarCapacitacion('${cap.id}')">✏️</button>
+                <button class="btn-accion btn-eliminar" onclick="eliminarCapacitacion('${cap.id}')">🗑️</button>
+              </td>
+            </tr>`;
+          tbody.innerHTML += fila;
+        });
+      }catch(e){
+        console.error("Error cargando capacitaciones", e);
+      }
+    }
+
+    cargarCapacitaciones();
+
+    // Submit (normaliza datos y envía)
+    const form = document.getElementById("form-capacitacion");
+    if (!form) {
+      console.error("No se encontró el formulario #form-capacitacion");
+      return;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const usuario = sessionStorage.getItem("usuario"); // debe venir del login
+      console.log("Usuario logueado:", usuario);
+
+      // Si no hay usuario en sessionStorage, avisar y no enviar
+      if (!usuario) {
+        alert("No estás logueado o sessionStorage no contiene 'usuario'. Vuelve a iniciar sesión.");
+        return;
+      }
+
+      const tema = document.getElementById("tema").value;
+      const fecha = document.getElementById("fecha").value; // ISO date
+      const hora = document.getElementById("hora").value;
+      const duracionRaw = document.getElementById("duracion").value;
+      const responsable = document.getElementById("responsable").value;
+      const area = document.getElementById("area").value;
+
+      const duracion = duracionRaw === "" ? null : parseInt(duracionRaw, 10);
+
+      const datos = {
+        tema,
+        fecha,
+        hora,
+        duracion,
+        responsable,
+        area,
+        // enviar únicamente el camelCase que mapea a la propiedad Java
+        usuarioReporta: usuario
+      };
+
+      console.log("📤 Enviando payload:", datos);
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(datos)
+        });
+
+        console.log("📥 Status:", res.status);
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Server returned error:", res.status, text);
+          alert("❌ Error en servidor. Revisa consola del backend.");
+          return;
+        }
+
+        alert("✅ Capacitación registrada");
+        form.reset();
+        cargarCapacitaciones();
+      } catch (err) {
+        console.error("Fetch error:", err);
+        alert("❌ Error registrando capacitación (ver consola).");
+      }
+    });
+
+    // eliminar y editar funciones simples
+    window.eliminarCapacitacion = async function(id){
+      if(!confirm("Eliminar?")) return;
+      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      cargarCapacitaciones();
+    }
+
+    window.editarCapacitacion = function(id){
+      window.location.href = `editar_capacitacion.html?id=${id}`;
+    }
+
+    // exportar
+    window.exportarExcelTabla = function(){
+      const tabla = document.querySelector('.tabla-capacitaciones table');
+      if (!tabla) { alert('No se encontró la tabla'); return; }
+      const tablaClon = tabla.cloneNode(true);
+      for (let fila of tablaClon.rows) {
+        if (fila.cells.length > 6) fila.deleteCell(-1);
+      }
+      const wb = XLSX.utils.table_to_book(tablaClon, { sheet: 'Capacitaciones' });
+      XLSX.writeFile(wb, `Capacitaciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+  });
+  </script>
+</body>
+</html>

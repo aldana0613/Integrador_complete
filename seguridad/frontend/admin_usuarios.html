@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Administrar Usuarios | Seguridad Industrial</title>
+  <link rel="stylesheet" href="estilos.css">
+  <style>
+    /* Estilos mínimos para que encaje con tu plantilla */
+    .page-header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .search-row { margin: 12px 0; display:flex; gap:8px; align-items:center; }
+    input[type="search"]{ padding:6px 10px; border:1px solid #ccc; border-radius:4px; width:220px; }
+    button.primary{ background:#0d6efd; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    button.danger{ background:#dc3545; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+    button.ghost{ background:transparent; border:1px solid #ccc; padding:6px 10px; border-radius:6px; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td{ border:1px solid #e1e1e1; padding:8px; text-align:left; }
+    .actions button{ margin-right:6px; }
+    /* Modal simple */
+    .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.4); z-index:50; }
+    .modal .card { background:white; padding:18px; border-radius:8px; width:420px; max-width:95%; }
+    .form-row { display:flex; gap:8px; }
+    label{ display:block; font-size:0.9rem; margin-top:8px; }
+    input, select { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; }
+    .small-muted { font-size:0.85rem; color:#666; margin-top:6px; }
+  </style>
+</head>
+<body>
+  <div class="app-window">
+    <div class="title-bar">
+      <span>Sistema de Gestión de Seguridad Industrial (ADMINISTRADOR)</span>
+      <div class="window-controls">
+        <span class="control-btn" title="Minimizar">_</span>
+        <span class="control-btn" title="Maximizar">☐</span>
+        <span class="control-btn" title="Cerrar">X</span>
+      </div>
+    </div>
+
+    <div class="app-container">
+      <!-- Sidebar (puedes copiar el tuyo, aquí un enlace) -->
+      <aside class="sidebar">
+        <h2>Módulos</h2>
+        <nav>
+          <a href="admin_dashboard.html">📊 Dashboard / Inicio</a>
+          <a href="incidentes.html">📝 Incidentes</a>
+          <a href="comment.html">💬 Gestión de Comentarios</a>
+          <a href="capacitaciones.html">📘 Capacitaciones</a>
+          <a href="admin_usuarios.html" class="active">👥 Usuarios</a>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <div class="page-header">
+          <h2>Administrar Usuarios</h2>
+          <div>
+            <button id="btn-nuevo" class="primary">➕ Nuevo Usuario</button>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <input id="search-input" type="search" placeholder="Buscar por usuario, nombre o área..." />
+          <button id="btn-search" class="ghost">Buscar</button>
+          <button id="btn-clear" class="ghost">Limpiar</button>
+        </div>
+
+        <div class="table-wrap">
+          <table id="tabla-usuarios">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Nombre Completo</th>
+                <th>Rol</th>
+                <th>Área</th>
+                <th>Email</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- filas generadas por JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <p id="mensaje" class="small-muted"></p>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal formulario nuevo/editar -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 id="modal-title">Nuevo Usuario</h3>
+      <form id="form-usuario">
+        <label for="username">Usuario (username)</label>
+        <input id="username" name="username" required placeholder="ej: jdoe">
+
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" placeholder="si está vacío no se modifica en edición">
+
+        <label for="nombreCompleto">Nombre Completo</label>
+        <input id="nombreCompleto" name="nombreCompleto">
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email">
+
+        <label for="rol">Rol</label>
+        <select id="rol" name="rol">
+          <option value="empleado">Empleado</option>
+          <option value="admin">Administrador</option>
+        </select>
+
+        <label for="areaTrabajo">Área</label>
+        <input id="areaTrabajo" name="areaTrabajo">
+
+        <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+          <button type="button" id="btn-cancel" class="ghost">Cancelar</button>
+          <button type="submit" id="btn-save" class="primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+/* ---------------- CONFIG ---------------- */
+const API_BASE = "http://localhost:8081/api"; // <- AJUSTA a tu backend
+// Si usas JWT, guarda en sessionStorage.setItem('token', 'Bearer xxxxx')
+function authHeaders(){
+  const token = sessionStorage.getItem('token');
+  return token ? { 'Authorization': token } : {};
+}
+
+/* ---------------- UI refs ---------------- */
+const tablaBody = document.querySelector('#tabla-usuarios tbody');
+const mensaje = document.getElementById('mensaje');
+const modal = document.getElementById('modal');
+const form = document.getElementById('form-usuario');
+const btnNuevo = document.getElementById('btn-nuevo');
+const btnSearch = document.getElementById('btn-search');
+const btnClear = document.getElementById('btn-clear');
+const inputSearch = document.getElementById('search-input');
+
+let editMode = false; // false = crear, true = editar
+let editingUsername = null;
+
+/* ------------- Eventos -------------- */
+document.addEventListener('DOMContentLoaded', loadUsers);
+btnNuevo.addEventListener('click', () => openModal('create'));
+btnSearch.addEventListener('click', () => filterUsers(inputSearch.value.trim()));
+btnClear.addEventListener('click', () => { inputSearch.value=''; loadUsers(); });
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await saveUser();
+});
+
+document.getElementById('btn-cancel').addEventListener('click', closeModal);
+modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
+
+/* ------------- Funciones -------------- */
+
+async function loadUsers(){
+  try {
+    mensaje.textContent = 'Cargando usuarios...';
+    const res = await fetch(`${API_BASE}/usuarios`, {
+      headers: { 'Content-Type':'application/json', ...authHeaders() }
+    });
+    if(!res.ok) throw new Error('Error al obtener usuarios: ' + res.status);
+    const usuarios = await res.json();
+    renderTable(usuarios);
+    mensaje.textContent = `Mostrando ${usuarios.length} usuario(s).`;
+  } catch (err) {
+    console.error(err);
+    mensaje.textContent = 'No se pudieron cargar usuarios. Revisa la API.';
+  }
+}
+
+function renderTable(list){
+  tablaBody.innerHTML = '';
+  if(!Array.isArray(list) || list.length === 0){
+    tablaBody.innerHTML = '<tr><td colspan="6">No hay usuarios registrados</td></tr>';
+    return;
+  }
+  list.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(u.username || '')}</td>
+      <td>${escapeHtml(u.nombreCompleto || '')}</td>
+      <td>${escapeHtml(u.rol || '')}</td>
+      <td>${escapeHtml(u.areaTrabajo || '')}</td>
+      <td>${escapeHtml(u.email || '')}</td>
+      <td class="actions">
+        <button class="ghost" onclick="onView('${u.username}')">Ver</button>
+        <button class="primary" onclick="onEdit('${u.username}')">Editar</button>
+        <button class="danger" onclick="onDelete('${u.username}')">Eliminar</button>
+      </td>
+    `;
+    tablaBody.appendChild(tr);
+  });
+}
+
+/* Buscar en lista llamando al backend (mejor) o filtrando local */
+async function filterUsers(q){
+  if(!q){ return loadUsers(); }
+  try {
+    // Si tu backend soporta búsqueda:
+    const res = await fetch(`${API_BASE}/usuarios/search?q=${encodeURIComponent(q)}`, {
+      headers: { ...authHeaders() }
+    });
+    if(res.ok){
+      const data = await res.json();
+      renderTable(data);
+      mensaje.textContent = `Resultados: ${data.length}`;
+      return;
+    }
+  } catch(e){
+    console.warn('Búsqueda por backend falló, se intentará filtrar localmente.', e);
+  }
+  // fallback local
+  try {
+    const res = await fetch(`${API_BASE}/usuarios`, { headers:{...authHeaders()} });
+    const all = await res.json();
+    const filtered = all.filter(u => 
+      (u.username||'').toLowerCase().includes(q.toLowerCase()) ||
+      (u.nombreCompleto||'').toLowerCase().includes(q.toLowerCase()) ||
+      (u.areaTrabajo||'').toLowerCase().includes(q.toLowerCase())
+    );
+    renderTable(filtered);
+    mensaje.textContent = `Resultados locales: ${filtered.length}`;
+  } catch(err){
+    console.error(err);
+    mensaje.textContent = 'Error en búsqueda';
+  }
+}
+
+/* Abrir modal */
+function openModal(mode, user=null){
+  editMode = (mode === 'edit');
+  editingUsername = user ? user : null;
+  document.getElementById('modal-title').textContent = editMode ? 'Editar Usuario' : 'Nuevo Usuario';
+  form.reset();
+  if(editMode && user){
+    // cargar datos del usuario
+    fetch(`${API_BASE}/usuarios/${encodeURIComponent(user)}`, {
+      headers: { 'Content-Type':'application/json', ...authHeaders() }
+    })
+    .then(r => r.ok ? r.json() : Promise.reject('No encontrado'))
+    .then(data => {
+      document.getElementById('username').value = data.username || '';
+      document.getElementById('username').disabled = true; // no cambiar username
+      document.getElementById('nombreCompleto').value = data.nombreCompleto || '';
+      document.getElementById('email').value = data.email || '';
+      document.getElementById('rol').value = data.rol || 'empleado';
+      document.getElementById('areaTrabajo').value = data.areaTrabajo || '';
+      // password lo dejamos vacío (si se ingresa, backend lo actualiza)
+      modal.style.display = 'flex';
+    })
+    .catch(err => {
+      alert('No se pudo cargar el usuario para editar.');
+      console.error(err);
+    });
+  } else {
+    document.getElementById('username').disabled = false;
+    modal.style.display = 'flex';
+  }
+}
+function closeModal(){
+  modal.style.display = 'none';
+  editingUsername = null;
+  editMode = false;
+  form.reset();
+}
+
+/* Guardar usuario (POST o PUT) */
+async function saveUser(){
+  const u = {
+    username: document.getElementById('username').value.trim(),
+    password: document.getElementById('password').value,
+    nombreCompleto: document.getElementById('nombreCompleto').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    rol: document.getElementById('rol').value,
+    areaTrabajo: document.getElementById('areaTrabajo').value.trim()
+  };
+  if(!u.username) return alert('El username es obligatorio');
+
+  try {
+    let res;
+    if(editMode){
+      // PUT a /usuarios/{username}
+      res = await fetch(`${API_BASE}/usuarios/${encodeURIComponent(editingUsername)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type':'application/json', ...authHeaders() },
+        body: JSON.stringify(u)
+      });
+    } else {
+      // POST a /usuarios
+      res = await fetch(`${API_BASE}/usuarios`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', ...authHeaders() },
+        body: JSON.stringify(u)
+      });
+    }
+
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error(res.status + ' ' + txt);
+    }
+    closeModal();
+    await loadUsers();
+    mensaje.textContent = editMode ? 'Usuario actualizado.' : 'Usuario creado.';
+  } catch (err) {
+    console.error(err);
+    alert('Error al guardar usuario: ' + (err.message || err));
+  }
+}
+
+/* Ver detalles (puede abrir modal en modo ver) */
+window.onView = async function(username){
+  try {
+    const res = await fetch(`${API_BASE}/usuarios/${encodeURIComponent(username)}`, {
+      headers: { 'Content-Type':'application/json', ...authHeaders() }
+    });
+    if(!res.ok) throw new Error('No encontrado');
+    const u = await res.json();
+    alert(`Usuario: ${u.username}\nNombre: ${u.nombreCompleto || '-'}\nEmail: ${u.email || '-'}\nRol: ${u.rol || '-'}\nÁrea: ${u.areaTrabajo || '-'}`);
+  } catch(err){
+    console.error(err);
+    alert('No se pudo obtener detalles del usuario.');
+  }
+}
+
+/* Editar */
+window.onEdit = function(username){
+  openModal('edit', username);
+}
+
+/* Eliminar */
+window.onDelete = async function(username){
+  if(!confirm(`¿Eliminar usuario "${username}"? Esta acción es irreversible.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/usuarios/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders() }
+    });
+    if(!res.ok) throw new Error('Error ' + res.status);
+    await loadUsers();
+    mensaje.textContent = 'Usuario eliminado';
+  } catch(err){
+    console.error(err);
+    alert('No se pudo eliminar el usuario.');
+  }
+}
+
+/* Small util */
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]); });
+}
+
+/* Exponer openModal en consola si necesitas: */
+window.openModal = openModal;
+</script>
+</body>
+</html>

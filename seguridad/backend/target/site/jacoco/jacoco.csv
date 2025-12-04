@@ -1,0 +1,14 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+backend,com.seguridadindustrial.backend,Backend,8,7,0,0,3,2,1,2,1,2
+backend,com.seguridadindustrial.backend,Capacitacion,42,17,0,0,12,5,12,5,12,5
+backend,com.seguridadindustrial.backend,Comentario,40,33,0,0,14,9,7,9,7,9
+backend,com.seguridadindustrial.backend,Incidente,41,39,0,0,13,12,6,12,6,12
+backend,com.seguridadindustrial.backend,Usuario,32,25,0,0,11,7,7,7,7,7
+backend,com.seguridadindustrial.backend.controller,UsuarioController,97,14,2,0,24,4,5,3,4,3
+backend,com.seguridadindustrial.backend.controller,AuthController.LoginRequest,0,3,0,0,0,1,0,1,0,1
+backend,com.seguridadindustrial.backend.controller,ConexionController,15,3,0,0,4,1,1,1,1,1
+backend,com.seguridadindustrial.backend.controller,IncidenteController,133,21,16,0,34,6,13,4,5,4
+backend,com.seguridadindustrial.backend.controller,HomeController,9,3,0,0,4,1,4,1,4,1
+backend,com.seguridadindustrial.backend.controller,AuthController,16,29,1,1,5,7,2,3,1,3
+backend,com.seguridadindustrial.backend.controller,CapacitacionController,172,3,16,0,42,1,14,1,6,1
+backend,com.seguridadindustrial.backend.controller,ComentarioController,79,3,4,0,19,1,8,1,6,1

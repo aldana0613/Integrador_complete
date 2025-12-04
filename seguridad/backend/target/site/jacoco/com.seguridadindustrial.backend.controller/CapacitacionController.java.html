@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CapacitacionController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">com.seguridadindustrial.backend.controller</a> &gt; <span class="el_source">CapacitacionController.java</span></div><h1>CapacitacionController.java</h1><pre class="source lang-java linenums">package com.seguridadindustrial.backend.controller;
+
+import com.seguridadindustrial.backend.Capacitacion;
+import com.seguridadindustrial.backend.repository.CapacitacionRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping(&quot;/api/capacitaciones&quot;)
+@CrossOrigin(origins = &quot;*&quot;)
+<span class="fc" id="L17">public class CapacitacionController {</span>
+
+    @Autowired
+    private CapacitacionRepository capacitacionRepository;
+
+    @GetMapping
+    public List&lt;Capacitacion&gt; getAllCapacitaciones() {
+<span class="nc" id="L24">        return capacitacionRepository.findAll();</span>
+    }
+
+    @GetMapping(&quot;/{id}&quot;)
+    public Capacitacion getCapacitacionById(@PathVariable Long id) {
+<span class="nc" id="L29">        return capacitacionRepository.findById(id).orElse(null);</span>
+    }
+
+    @GetMapping(&quot;/area/{area}&quot;)
+    public List&lt;Capacitacion&gt; getCapacitacionesByArea(@PathVariable String area) {
+<span class="nc" id="L34">        return capacitacionRepository.findByArea(area);</span>
+    }
+
+    // POST: recibe raw body, imprime y mapea con ObjectMapper configurado para java.time
+    @PostMapping
+    public ResponseEntity&lt;Capacitacion&gt; createCapacitacion(@RequestBody String body) {
+        try {
+<span class="nc" id="L41">            System.out.println(&quot;📌 RAW REQUEST BODY: &quot; + body);</span>
+
+<span class="nc" id="L43">            ObjectMapper mapper = new ObjectMapper();</span>
+            // Registrar módulo para java.time (LocalDate, LocalTime...)
+<span class="nc" id="L45">            mapper.registerModule(new JavaTimeModule());</span>
+<span class="nc" id="L46">            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);</span>
+
+<span class="nc" id="L48">            Capacitacion capacitacion = mapper.readValue(body, Capacitacion.class);</span>
+
+<span class="nc" id="L50">            System.out.println(&quot;📌 MAPPED Capacitacion:&quot;);</span>
+<span class="nc" id="L51">            System.out.println(&quot;    Tema: &quot; + capacitacion.getTema());</span>
+<span class="nc" id="L52">            System.out.println(&quot;    Fecha: &quot; + capacitacion.getFecha());</span>
+<span class="nc" id="L53">            System.out.println(&quot;    Hora: &quot; + capacitacion.getHora());</span>
+<span class="nc" id="L54">            System.out.println(&quot;    Duración: &quot; + capacitacion.getDuracion());</span>
+<span class="nc" id="L55">            System.out.println(&quot;    Responsable: &quot; + capacitacion.getResponsable());</span>
+<span class="nc" id="L56">            System.out.println(&quot;    Área: &quot; + capacitacion.getArea());</span>
+<span class="nc" id="L57">            System.out.println(&quot;    Usuario reporta (mapeado): &quot; + capacitacion.getUsuarioReporta());</span>
+<span class="nc" id="L58">            System.out.println(&quot;===========================================&quot;);</span>
+
+<span class="nc" id="L60">            Capacitacion saved = capacitacionRepository.save(capacitacion);</span>
+<span class="nc" id="L61">            return ResponseEntity.ok(saved);</span>
+
+<span class="nc" id="L63">        } catch (Exception e) {</span>
+<span class="nc" id="L64">            e.printStackTrace();</span>
+<span class="nc" id="L65">            return ResponseEntity.status(500).build();</span>
+        }
+    }
+
+    @PutMapping(&quot;/{id}&quot;)
+    public Capacitacion updateCapacitacion(@PathVariable Long id, @RequestBody Capacitacion capacitacionDetails) {
+
+<span class="nc" id="L72">        Capacitacion capacitacion = capacitacionRepository.findById(id).orElse(null);</span>
+
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (capacitacion != null) {</span>
+
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            if (capacitacionDetails.getTema() != null)</span>
+<span class="nc" id="L77">                capacitacion.setTema(capacitacionDetails.getTema());</span>
+
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            if (capacitacionDetails.getFecha() != null)</span>
+<span class="nc" id="L80">                capacitacion.setFecha(capacitacionDetails.getFecha());</span>
+
+<span class="nc bnc" id="L82" title="All 2 branches missed.">            if (capacitacionDetails.getHora() != null)</span>
+<span class="nc" id="L83">                capacitacion.setHora(capacitacionDetails.getHora());</span>
+
+<span class="nc bnc" id="L85" title="All 2 branches missed.">            if (capacitacionDetails.getDuracion() != null)</span>
+<span class="nc" id="L86">                capacitacion.setDuracion(capacitacionDetails.getDuracion());</span>
+
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            if (capacitacionDetails.getResponsable() != null)</span>
+<span class="nc" id="L89">                capacitacion.setResponsable(capacitacionDetails.getResponsable());</span>
+
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (capacitacionDetails.getArea() != null)</span>
+<span class="nc" id="L92">                capacitacion.setArea(capacitacionDetails.getArea());</span>
+
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            if (capacitacionDetails.getUsuarioReporta() != null)</span>
+<span class="nc" id="L95">                capacitacion.setUsuarioReporta(capacitacionDetails.getUsuarioReporta());</span>
+
+<span class="nc" id="L97">            return capacitacionRepository.save(capacitacion);</span>
+        }
+
+<span class="nc" id="L100">        return null;</span>
+    }
+
+    @DeleteMapping(&quot;/{id}&quot;)
+    public void deleteCapacitacion(@PathVariable Long id) {
+<span class="nc" id="L105">        capacitacionRepository.deleteById(id);</span>
+<span class="nc" id="L106">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
